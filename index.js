@@ -32,6 +32,7 @@ async function run() {
 
     const dataBase = client.db("fitZone");
     const productsCollection = dataBase.collection("products");
+    const cartProductUserCollection = dataBase.collection("cart");
 
     // all operation start
 
@@ -39,11 +40,27 @@ async function run() {
     app.post("/products", async (req, res) => {
       try {
         const newProduct = req.body;
-        console.log(newProduct);
+        // console.log(newProduct);
         const result = await productsCollection.insertOne(newProduct);
         res.status(201).send(result);
       } catch (error) {
         res.status(500).send({ message: "Failed to create product", error });
+      }
+    });
+
+    // create payment and user
+    app.post("/payment", async (req, res) => {
+      try {
+        const cartProductUser = req.body;
+        // console.log(cartProductUser);
+        const result = await cartProductUserCollection.insertOne(
+          cartProductUser
+        );
+        res.status(201).send(result);
+      } catch (error) {
+        res
+          .status(500)
+          .send({ message: "Failed to create cartProductUser", error });
       }
     });
 
@@ -113,6 +130,33 @@ async function run() {
         console.error("Error deleting product:", error);
         res.status(500).json({ message: "Internal Server Error" });
       }
+    });
+
+    // update quantity
+    app.put("/products/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateReqProductStock = req.body;
+
+      const product = await productsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      const finalStock = product.stock - updateReqProductStock.updatedStock;
+
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedStock = {
+        $set: {
+          stock: finalStock,
+        },
+      };
+
+      const result = await productsCollection.updateOne(
+        filter,
+        updatedStock,
+        options
+      );
+      res.send(result);
     });
 
     // all operation end
